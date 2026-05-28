@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>超級瑪利歐</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Courier New', monospace;
+      user-select: none;
+    }
+    #wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      border: 3px solid #444;
+      box-shadow: 0 0 30px rgba(100, 150, 255, 0.3);
+      display: block;
+    }
+    #controls {
+      color: #aaa;
+      font-size: 12px;
+      text-align: center;
+      line-height: 1.8;
+    }
+    #controls span { color: #fcd020; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div id="wrapper">
+    <canvas id="gameCanvas" width="800" height="480"></canvas>
+    <div id="controls">
+      <span>← →</span> 移動 &nbsp;|&nbsp;
+      <span>Z / 空白鍵</span> 跳躍 &nbsp;|&nbsp;
+      <span>X</span> 奔跑 &nbsp;|&nbsp;
+      <span>Enter</span> 開始/確認
+    </div>
+  </div>
+  <script src="js/game.js"></script>
+</body>
+</html>
