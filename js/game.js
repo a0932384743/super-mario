@@ -487,39 +487,36 @@ class Player extends Entity {
     if (this.invincible > 0) this.invincible--;
     if (this.fireballCooldown > 0) this.fireballCooldown--;
 
-    // Horizontal
-    const spd = input.run() ? 5.5 : 3.5;
+    // Horizontal — 快速響應
+    const spd = input.run() ? 6.0 : 4.0;
     if (input.left() && !input.right()) {
-      this.vx = Math.max(this.vx - 0.85, -spd);
+      if (this.vx > 0) this.vx = 0;          // 瞬間換向
+      this.vx = Math.max(this.vx - 2.0, -spd);
       this.facing = -1;
     } else if (input.right() && !input.left()) {
-      this.vx = Math.min(this.vx + 0.85, spd);
+      if (this.vx < 0) this.vx = 0;          // 瞬間換向
+      this.vx = Math.min(this.vx + 2.0, spd);
       this.facing = 1;
     } else {
-      this.vx *= 0.80;
-      if (Math.abs(this.vx) < 0.15) this.vx = 0;
+      this.vx *= this.grounded ? 0.68 : 0.90; // 地面快速煞車
+      if (Math.abs(this.vx) < 0.3) this.vx = 0;
     }
 
-    // Jump
+    // Jump — 可變高度，按越久跳越高
     if (input.jumpJust() && this.grounded) {
-      this.vy = -13.5;
+      this.vy = -14;
       this.jumpHeld = 1;
       sfx.jump();
     } else if (input.jump() && this.jumpHeld > 0 && this.vy < 0) {
       this.jumpHeld++;
-      if (this.jumpHeld < 14) this.vy -= 0.45;
+      if (this.jumpHeld < 16) this.vy -= 0.3;
     } else {
       this.jumpHeld = 0;
     }
 
-    // Fireball throw
-    if (input.run() && input.jumpJust() && this.state === 'fire' && this.fireballCooldown === 0) {
-      // handled in game
-    }
-
     // Gravity
     const holdingJump = input.jump() && this.jumpHeld > 0 && this.vy < 0;
-    this.vy += holdingJump ? 0.38 : 0.58;
+    this.vy += holdingJump ? 0.40 : 0.62;
     this.vy = Math.min(this.vy, 14);
 
     this._moveX(map);
@@ -606,85 +603,125 @@ class Player extends Entity {
   }
 
   _drawMario(ctx, px, py) {
-    const big = this.isBig();
-    const f = this.facing;
+    const big  = this.isBig();
+    const f    = this.facing;   // 1=right, -1=left
     const fire = this.state === 'fire';
-    const hat  = fire ? '#ffffff' : '#e80000';
-    const cloth= fire ? '#e80000' : '#0000cc';
-    const skin = '#fcbc3c';
-    const shoe = '#8b4000';
-    const hair = '#5c3000';
-    const w = PW;
+    const wk   = this.walkFrame;
+    const air  = !this.grounded;
 
-    if (big) {
-      const h = PH_BIG;
-      // Hat
-      ctx.fillStyle = hat;
-      ctx.fillRect(px+2, py, w-4, 8);
-      ctx.fillRect(px-1, py+5, w+2, 7);
-      // Hair
-      ctx.fillStyle = hair;
-      ctx.fillRect(px+3, py+5, w-6, 5);
-      // Face
-      ctx.fillStyle = skin;
-      ctx.fillRect(px+1, py+11, w-2, 12);
-      // Eye
-      ctx.fillStyle = '#000';
-      ctx.fillRect(f===1 ? px+w-9 : px+5, py+13, 4, 4);
-      // Nose
-      ctx.fillStyle = skin;
-      ctx.fillRect(f===1 ? px+w-6 : px+3, py+17, 5, 3);
-      // Mustache
-      ctx.fillStyle = hair;
-      ctx.fillRect(px+2, py+19, w-4, 4);
-      // Overalls
-      ctx.fillStyle = cloth;
-      ctx.fillRect(px, py+23, w, 16);
-      // Buttons
-      ctx.fillStyle = hat;
-      ctx.fillRect(px+5, py+25, 4, 4);
-      ctx.fillRect(px+w-9, py+25, 4, 4);
-      // Arm
-      ctx.fillStyle = skin;
-      const ax = f === 1 ? px + w - 2 : px - 4;
-      ctx.fillRect(ax, py+23, 8, 10);
-      // Legs
-      ctx.fillStyle = cloth;
-      ctx.fillRect(px+2, py+39, 10, 5);
-      ctx.fillRect(px+w-12, py+39, 10, 5);
-      // Shoes
-      ctx.fillStyle = shoe;
-      ctx.fillRect(f===1 ? px+w-14 : px, py+44, 14, 4);
-      ctx.fillRect(f===1 ? px : px+w-14, py+44, 10, 4);
+    // 調色盤
+    const HAT  = fire ? '#f0f0f0' : '#cc0000';
+    const OVR  = fire ? '#cc0000' : '#0055cc';
+    const RED  = '#cc0000';
+    const SKIN = '#ffaa55';
+    const DARK = '#5c2400';   // 頭髮/鬍子
+    const SHOE = '#6b2800';
+    const K    = '#000000';
+    const W    = '#ffffff';
+
+    // 快捷繪製 helper
+    const d = (col, x, y, w, h) => {
+      ctx.fillStyle = col;
+      ctx.fillRect(px + x, py + y, w, h);
+    };
+
+    if (!big) {
+      // ===== 小瑪利歐 (26 × 30) 像素風 =====
+      // — 帽子 —
+      d(HAT, 8,  0, 11, 4);   // 帽頂
+      d(HAT, 1,  4, 24, 4);   // 帽簷（比臉寬）
+      d(DARK, 1, 4,  5, 4);   // 帽簷左邊頭髮
+      d(DARK, 20,4,  5, 4);   // 帽簷右邊頭髮
+
+      // — 臉 —
+      d(SKIN, 3, 8, 20, 9);   // 臉部底色
+      // 耳朵（背面）
+      d(SKIN, f===1 ? 1 : 22, 9, 3, 6);
+      // 眼睛
+      d(K,    f===1 ? 19 : 4, 9,  4, 4);
+      d(W,    f===1 ? 20 : 5, 9,  2, 2); // 眼白高光
+      // 大鼻子（朝前凸出）
+      d(SKIN, f===1 ? 21 : 2, 12, 5, 4);
+
+      // — 鬍子（寬且厚）—
+      d(DARK, 1, 17, 24, 4);
+
+      // — 紅色領口 —
+      d(RED,  3, 21, 20, 2);
+
+      // — 吊帶褲 —
+      // 吊帶
+      d(OVR,  5, 22, 5, 2);
+      d(OVR, 16, 22, 5, 2);
+      // 吊帶間露出紅色
+      d(RED, 10, 22, 6, 2);
+      // 褲子主體
+      d(OVR,  4, 24, 18, 5);
+      d(RED,  2, 24,  2, 5);  // 左側紅衫
+      d(RED, 22, 24,  2, 5);  // 右側紅衫
+
+      // — 腿（走路動畫）—
+      const lx = [4, 3, 5][wk];    // 左腿 x 偏移
+      const rx = [16, 17, 15][wk]; // 右腿 x 偏移
+      d(OVR, lx, 29, 8, 3);
+      d(OVR, rx, 29, 8, 3);
+
+      // — 鞋子（朝前的鞋子較大）—
+      const frontX = f===1 ? rx+2  : lx-2;
+      const backX  = f===1 ? lx-2  : rx+2;
+      d(SHOE, frontX, 31, 11, 4);  // 前鞋（大）
+      d(SHOE, backX,  31,  8, 4);  // 後鞋（小）
+
+      // — 手臂（朝前方向）—
+      d(SKIN, f===1 ? 22 : -4, 22, 6, 8);
+
     } else {
-      const h = PH_SM;
-      // Hat
-      ctx.fillStyle = hat;
-      ctx.fillRect(px+2, py, w-4, 5);
-      ctx.fillRect(px-1, py+3, w+2, 6);
-      // Hair/eyebrow
-      ctx.fillStyle = hair;
-      ctx.fillRect(px+3, py+3, w-6, 4);
-      // Face
-      ctx.fillStyle = skin;
-      ctx.fillRect(px+1, py+8, w-2, 8);
-      // Eye
-      ctx.fillStyle = '#000';
-      ctx.fillRect(f===1 ? px+w-8 : px+5, py+9, 3, 3);
-      // Mustache
-      ctx.fillStyle = hair;
-      ctx.fillRect(px+2, py+13, w-4, 3);
-      // Overalls
-      ctx.fillStyle = cloth;
-      ctx.fillRect(px, py+16, w, 10);
-      // Buttons
-      ctx.fillStyle = hat;
-      ctx.fillRect(px+4, py+18, 3, 3);
-      ctx.fillRect(px+w-7, py+18, 3, 3);
-      // Shoes
-      ctx.fillStyle = shoe;
-      ctx.fillRect(f===1 ? px+w-14 : px, py+25, 13, 5);
-      ctx.fillRect(f===1 ? px : px+w-13, py+25, 10, 5);
+      // ===== 大瑪利歐 (26 × 46) 像素風 =====
+      // — 帽子 —
+      d(HAT,  6,  0, 14, 6);   // 帽頂
+      d(HAT,  1,  5, 24, 6);   // 帽簷
+      d(DARK, 1,  5,  6, 6);
+      d(DARK, 20, 5,  5, 6);
+
+      // — 臉 —
+      d(SKIN, 2, 11, 22, 14);
+      // 耳朵
+      d(SKIN, f===1 ? 0 : 23, 13, 3, 8);
+      // 眼睛
+      d(K,    f===1 ? 19 : 3, 12, 5, 5);
+      d(W,    f===1 ? 20 : 4, 12, 3, 2);  // 高光
+      // 大鼻子
+      d(SKIN, f===1 ? 22 : 1, 17, 5, 6);
+
+      // — 鬍子 —
+      d(DARK, 2, 25, 22, 5);
+
+      // — 紅色領口 —
+      d(RED,  2, 30, 22, 3);
+
+      // — 吊帶褲 —
+      d(OVR,  5, 33,  6, 5);
+      d(OVR, 15, 33,  6, 5);
+      d(RED, 11, 33,  4, 4);
+      // 褲子主體
+      d(OVR,  4, 38, 18, 6);
+      d(RED,  2, 38,  2, 6);
+      d(RED, 22, 38,  2, 6);
+
+      // — 腿 —
+      const lx2 = [3, 2, 4][wk];
+      const rx2 = [15,16,14][wk];
+      d(OVR, lx2, 44, 10, 4);
+      d(OVR, rx2, 44, 10, 4);
+
+      // — 鞋子 —
+      const fxB = f===1 ? rx2+2  : lx2-2;
+      const bxB = f===1 ? lx2-2  : rx2+2;
+      d(SHOE, fxB, 47, 14, 5);
+      d(SHOE, bxB, 47, 10, 5);
+
+      // — 手臂 —
+      d(SKIN, f===1 ? 22 : -4, 33, 7, 12);
     }
   }
 }
@@ -2129,19 +2166,29 @@ class Game {
   }
 
   _drawMiniMario(ctx, x, y) {
-    const t = Math.floor(this.frame/8) % 2;
-    ctx.fillStyle = '#e80000';
-    ctx.fillRect(x+2, y, 24, 6);
-    ctx.fillRect(x-1, y+4, 28, 6);
-    ctx.fillStyle = '#fcbc3c';
-    ctx.fillRect(x+1, y+9, 26, 9);
-    ctx.fillStyle = '#000';
-    ctx.fillRect(x+18, y+11, 4, 4);
-    ctx.fillStyle = '#0000cc';
-    ctx.fillRect(x, y+18, 28, 10);
-    ctx.fillStyle = '#8b4000';
-    ctx.fillRect(t===0?x:x+14, y+27, 14, 5);
-    ctx.fillRect(t===0?x+14:x, y+28, 12, 4);
+    const t = Math.floor(this.frame/10) % 2;
+    const d = (c, dx, dy, w, h) => { ctx.fillStyle = c; ctx.fillRect(x+dx, y+dy, w, h); };
+    // Hat
+    d('#cc0000', 4, 0, 14, 4);
+    d('#cc0000', 0, 4, 26, 4);
+    d('#5c2400', 0, 4, 6, 4);
+    // Face
+    d('#ffaa55', 2, 8, 22, 9);
+    d('#000', 18, 9, 4, 4);
+    d('#ffaa55', 22, 11, 5, 4);
+    // Mustache
+    d('#5c2400', 2, 17, 22, 4);
+    // Overalls
+    d('#cc0000', 2, 21, 22, 2);
+    d('#0055cc', 4, 22, 18, 6);
+    d('#cc0000', 2, 22, 2, 6);
+    d('#cc0000', 22, 22, 2, 6);
+    // Legs
+    d('#0055cc', t===0?4:3, 28, 8, 4);
+    d('#0055cc', t===0?16:17, 28, 8, 4);
+    // Shoes
+    d('#6b2800', t===0?14:15, 31, 12, 4);
+    d('#6b2800', t===0?2:1, 31, 10, 4);
   }
 
   drawGameOver(ctx) {
