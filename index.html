@@ -2,52 +2,258 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>超級瑪利歐</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
       background: #1a1a2e;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-touch-callout: none;
+      user-select: none;
+      -webkit-user-select: none;
+      font-family: 'Courier New', monospace;
+    }
+
+    #game-wrap {
       display: flex;
       flex-direction: column;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+      height: 100dvh;
+    }
+
+    /* ── 遊戲畫面區 ── */
+    #canvas-wrap {
+      flex: 1 1 0;
+      min-height: 0;
+      display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      font-family: 'Courier New', monospace;
-      user-select: none;
+      width: 100%;
     }
-    #wrapper {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-    }
+
     canvas {
+      display: block;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
       border: 3px solid #444;
-      box-shadow: 0 0 30px rgba(100, 150, 255, 0.3);
-      display: block;
+      box-shadow: 0 0 24px rgba(92, 148, 252, 0.35);
+      touch-action: none;
     }
-    #controls {
-      color: #aaa;
-      font-size: 12px;
+
+    /* ── 鍵盤提示（桌機顯示） ── */
+    #kb-hint {
+      color: #888;
+      font-size: 11px;
       text-align: center;
-      line-height: 1.8;
+      padding: 5px 0 2px;
+      flex-shrink: 0;
     }
-    #controls span { color: #fcd020; font-weight: bold; }
+    #kb-hint span { color: #fcd020; }
+
+    /* ── 觸控控制器（預設隱藏，觸控裝置才顯示） ── */
+    #touch-ctrl {
+      display: none;
+      width: 100%;
+      flex-shrink: 0;
+      height: 128px;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      padding: 10px 16px 14px;
+    }
+
+    @media (pointer: coarse) {
+      #kb-hint    { display: none; }
+      #touch-ctrl { display: flex; }
+    }
+
+    /* 橫向模式縮小控制列高度 */
+    @media (pointer: coarse) and (orientation: landscape) and (max-height: 480px) {
+      #touch-ctrl { height: 88px; padding: 6px 20px 10px; }
+    }
+
+    /* ── 按鍵區塊佈局 ── */
+    #dpad       { display: flex; gap: 8px; align-items: center; }
+    #mid-btns   { flex: 1; display: flex; justify-content: center; align-items: center; gap: 12px; }
+    #action-btns{ display: flex; gap: 12px; align-items: center; }
+
+    .btn-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-label {
+      font-size: 10px;
+      color: rgba(255,255,255,0.45);
+      letter-spacing: 0.5px;
+    }
+
+    /* ── 基礎按鈕 ── */
+    .btn {
+      border: none;
+      border-radius: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: filter 0.05s;
+    }
+    .btn:active { filter: brightness(1.25); }
+
+    /* 方向鍵 */
+    .btn-dir {
+      width: 62px; height: 62px;
+      border-radius: 14px;
+      background: linear-gradient(145deg, #4a4a5a, #252530);
+      box-shadow: 0 5px 0 #111, inset 0 1px 0 rgba(255,255,255,0.12);
+      color: #ddd;
+      font-size: 28px;
+    }
+    @media (pointer: coarse) and (orientation: landscape) and (max-height: 480px) {
+      .btn-dir { width: 48px; height: 48px; font-size: 22px; }
+    }
+
+    /* START 按鈕 */
+    .btn-start {
+      width: 56px; height: 28px;
+      border-radius: 14px;
+      background: linear-gradient(145deg, #484858, #202028);
+      box-shadow: 0 3px 0 #111;
+      color: #aaa;
+      font-size: 10px;
+      letter-spacing: 1px;
+      flex-shrink: 0;
+    }
+
+    /* 跳躍 A（紅） */
+    .btn-a {
+      width: 68px; height: 68px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 38% 30%, #ff5555, #bb0000);
+      box-shadow: 0 6px 0 #770000, inset 0 1px 0 rgba(255,255,255,0.25);
+      color: #fff;
+      font-size: 26px;
+      font-family: Arial, sans-serif;
+    }
+    @media (pointer: coarse) and (orientation: landscape) and (max-height: 480px) {
+      .btn-a { width: 54px; height: 54px; font-size: 20px; }
+    }
+
+    /* 奔跑 B（黃） */
+    .btn-b {
+      width: 58px; height: 58px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 38% 30%, #ffdd44, #cc8800);
+      box-shadow: 0 5px 0 #885500, inset 0 1px 0 rgba(255,255,255,0.3);
+      color: #5a2800;
+      font-size: 22px;
+      font-family: Arial, sans-serif;
+    }
+    @media (pointer: coarse) and (orientation: landscape) and (max-height: 480px) {
+      .btn-b { width: 46px; height: 46px; font-size: 18px; }
+    }
   </style>
 </head>
 <body>
-  <div id="wrapper">
-    <canvas id="gameCanvas" width="800" height="480"></canvas>
-    <div id="controls">
+  <div id="game-wrap">
+
+    <div id="canvas-wrap">
+      <canvas id="gameCanvas" width="800" height="480"></canvas>
+    </div>
+
+    <!-- 桌機鍵盤提示 -->
+    <div id="kb-hint">
       <span>← →</span> 移動 &nbsp;|&nbsp;
       <span>Z / 空白鍵</span> 跳躍 &nbsp;|&nbsp;
       <span>X</span> 奔跑 &nbsp;|&nbsp;
       <span>Enter</span> 開始/確認
     </div>
-  </div>
+
+    <!-- 手機觸控控制器 -->
+    <div id="touch-ctrl">
+
+      <!-- 左：方向鍵 -->
+      <div id="dpad">
+        <div class="btn-wrap">
+          <button class="btn btn-dir" id="btn-left"  aria-label="向左">◀</button>
+          <span class="btn-label">左移</span>
+        </div>
+        <div class="btn-wrap">
+          <button class="btn btn-dir" id="btn-right" aria-label="向右">▶</button>
+          <span class="btn-label">右移</span>
+        </div>
+      </div>
+
+      <!-- 中：START -->
+      <div id="mid-btns">
+        <button class="btn btn-start" id="btn-start" aria-label="開始/確認">START</button>
+      </div>
+
+      <!-- 右：動作按鈕 -->
+      <div id="action-btns">
+        <div class="btn-wrap">
+          <button class="btn btn-b" id="btn-run"  aria-label="奔跑">B</button>
+          <span class="btn-label">奔跑</span>
+        </div>
+        <div class="btn-wrap">
+          <button class="btn btn-a" id="btn-jump" aria-label="跳躍">A</button>
+          <span class="btn-label">跳躍</span>
+        </div>
+      </div>
+
+    </div><!-- /touch-ctrl -->
+  </div><!-- /game-wrap -->
+
   <script src="js/game.js"></script>
+  <script>
+    // ── Canvas 自動縮放，維持 800×480 比例 ──
+    function fitCanvas() {
+      const wrap   = document.getElementById('canvas-wrap');
+      const canvas = document.getElementById('gameCanvas');
+      const availW = wrap.clientWidth;
+      const availH = wrap.clientHeight;
+      const scale  = Math.min(availW / 800, availH / 480);
+      canvas.style.width  = Math.floor(800 * scale) + 'px';
+      canvas.style.height = Math.floor(480 * scale) + 'px';
+    }
+    window.addEventListener('resize', fitCanvas);
+    window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 150));
+    fitCanvas();
+
+    // ── 觸控按鍵綁定（使用 Pointer Events 支援多指） ──
+    function bindBtn(id, key) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('pointerdown', e => {
+        e.preventDefault();
+        el.setPointerCapture(e.pointerId);   // 手指滑出也不漏掉 pointerup
+        window._mario?.input.touch(key, true);
+      }, { passive: false });
+      el.addEventListener('pointerup',     () => window._mario?.input.touch(key, false));
+      el.addEventListener('pointercancel', () => window._mario?.input.touch(key, false));
+      el.addEventListener('contextmenu',   e  => e.preventDefault());
+    }
+
+    bindBtn('btn-left',  'ArrowLeft');
+    bindBtn('btn-right', 'ArrowRight');
+    bindBtn('btn-jump',  'Space');
+    bindBtn('btn-run',   'KeyX');
+    bindBtn('btn-start', 'Enter');
+
+    // 防止手機整頁拖曳與縮放
+    document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+  </script>
 </body>
 </html>
