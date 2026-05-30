@@ -91,6 +91,16 @@ class Input {
   run()       { return !!(this.held['KeyX'] || this.held['ShiftLeft'] || this.held['ShiftRight']); }
   jumpJust()  { return !!(this.just['ArrowUp'] || this.just['Space'] || this.just['KeyZ']); }
   enter()     { return !!(this.just['Enter']); }
+
+  // 觸控按鍵支援
+  touch(key, on) {
+    if (on) {
+      if (!this.held[key]) this.just[key] = true;
+      this.held[key] = true;
+    } else {
+      delete this.held[key];
+    }
+  }
 }
 
 // ---- 粒子特效 PARTICLES ----
@@ -2260,5 +2270,6 @@ window.addEventListener('load', () => {
   const canvas = document.getElementById('gameCanvas');
   canvas.width = GW;
   canvas.height = GH;
-  new Game(canvas);
+  // 暴露給 HTML 觸控按鍵使用
+  window._mario = new Game(canvas);
 });
