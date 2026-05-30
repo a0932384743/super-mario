@@ -1692,6 +1692,14 @@ class Game {
     this.levelDefs = [buildLevel1, buildLevel2, buildLevel3];
     this.loadLevel(0);
 
+    // 點擊 / 觸碰遊戲畫面也可開始（手機友善）
+    canvas.addEventListener('pointerdown', () => {
+      if (this.state === 'title' || this.state === 'gameover' || this.state === 'win') {
+        this.input.touch('Enter', true);
+        this.sfx.ac && this.sfx.ac.resume();
+      }
+    });
+
     this.frame = 0;
     this.lastTime = 0;
     requestAnimationFrame(t => this.loop(t));
@@ -2154,15 +2162,16 @@ class Game {
     ctx.font = 'bold 22px monospace';
     ctx.fillText('打怪闖關大冒險', GW/2, GH/2 - 20);
 
-    // Instructions
+    // Instructions — 桌機顯示 Enter，手機顯示點擊提示
     ctx.fillStyle = `rgba(255,255,220,${0.5 + 0.5*Math.sin(this.frame*0.08)})`;
-    ctx.font = 'bold 20px monospace';
-    ctx.fillText('按 Enter 開始遊戲', GW/2, GH/2 + 40);
+    ctx.font = 'bold 22px monospace';
+    ctx.fillText('點擊畫面開始  /  Press Enter', GW/2, GH/2 + 44);
 
     // Controls guide
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '14px monospace';
-    ctx.fillText('← → 移動  |  Z / 空白 跳躍  |  X 奔跑  |  X+Z 射火球 (火焰馬力歐)', GW/2, GH/2 + 80);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '13px monospace';
+    ctx.fillText('⌨  ← → 移動  |  Z 跳躍  |  X 奔跑  |  X+Z 射火球', GW/2, GH/2 + 80);
+    ctx.fillText('📱  左右鍵移動  |  A 跳躍  |  B 奔跑  |  B+A 射火球', GW/2, GH/2 + 100);
 
     // Features
     const features = ['★ 3個精彩關卡', '★ 多種敵人 (栗寶寶、烏龜、食人花)', '★ 庫巴BOSS決戰', '★ 道具系統 (蘑菇/火焰花)'];
@@ -2219,7 +2228,7 @@ class Game {
     if (this.stateTimer > 180) {
       ctx.fillStyle = `rgba(255,255,200,${0.5+0.5*Math.sin(this.frame*0.1)})`;
       ctx.font = 'bold 20px monospace';
-      ctx.fillText('按 Enter 重新開始', GW/2, GH/2 + 110);
+      ctx.fillText('點擊畫面重新開始  /  Press Enter', GW/2, GH/2 + 110);
     }
   }
 
@@ -2257,7 +2266,7 @@ class Game {
     if (this.stateTimer > 200) {
       ctx.fillStyle = `rgba(255,255,200,${0.5+0.5*Math.sin(this.frame*0.1)})`;
       ctx.font = 'bold 20px monospace';
-      ctx.fillText('按 Enter 再玩一次', GW/2, GH/2 + 140);
+      ctx.fillText('點擊畫面再玩一次  /  Press Enter', GW/2, GH/2 + 140);
     }
   }
 }
