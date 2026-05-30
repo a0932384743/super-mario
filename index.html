@@ -92,7 +92,6 @@
     .btn-label {
       font-size: 10px;
       color: rgba(255,255,255,0.4);
-      pointer-events: none; /* 不攔截 touch */
     }
 
     /* ── 基礎按鈕 ── */
@@ -105,7 +104,6 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      pointer-events: none; /* 由父容器統一管理 touch */
     }
 
     /* 方向鍵 */
@@ -243,13 +241,16 @@
 
       /**
        * 由螢幕座標找出該位置對應的虛擬按鍵 (data-key)
-       * elementFromPoint 會穿透 pointer-events:none 的子元素，直接找到 data-key 節點
+       * 用 getBoundingClientRect 逐一比對，不依賴 pointer-events CSS
        */
+      const btns = Array.from(ctrl.querySelectorAll('[data-key]'));
       function keyAt(clientX, clientY) {
-        let el = document.elementFromPoint(clientX, clientY);
-        while (el && el !== ctrl) {
-          if (el.dataset && el.dataset.key) return el.dataset.key;
-          el = el.parentElement;
+        for (const btn of btns) {
+          const r = btn.getBoundingClientRect();
+          if (clientX >= r.left && clientX <= r.right &&
+              clientY >= r.top  && clientY <= r.bottom) {
+            return btn.dataset.key;
+          }
         }
         return null;
       }
