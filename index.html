@@ -23,7 +23,6 @@
       flex-direction: column;
       align-items: center;
       width: 100%;
-      height: 100%;
       height: 100dvh;
     }
 
@@ -46,7 +45,7 @@
       touch-action: none;
     }
 
-    /* ── 鍵盤提示（桌機顯示） ── */
+    /* ── 桌機鍵盤提示 ── */
     #kb-hint {
       color: #888;
       font-size: 11px;
@@ -56,7 +55,7 @@
     }
     #kb-hint span { color: #fcd020; }
 
-    /* ── 觸控控制器（預設隱藏，觸控裝置才顯示） ── */
+    /* ── 觸控控制器（觸控裝置才顯示） ── */
     #touch-ctrl {
       display: none;
       width: 100%;
@@ -66,6 +65,8 @@
       backdrop-filter: blur(4px);
       align-items: center;
       padding: 10px 16px 14px;
+      /* 關鍵：讓子元素自己處理 touch，不讓父元素攔截 */
+      touch-action: none;
     }
 
     @media (pointer: coarse) {
@@ -73,15 +74,14 @@
       #touch-ctrl { display: flex; }
     }
 
-    /* 橫向模式縮小控制列高度 */
     @media (pointer: coarse) and (orientation: landscape) and (max-height: 480px) {
       #touch-ctrl { height: 88px; padding: 6px 20px 10px; }
     }
 
-    /* ── 按鍵區塊佈局 ── */
-    #dpad       { display: flex; gap: 8px; align-items: center; }
-    #mid-btns   { flex: 1; display: flex; justify-content: center; align-items: center; gap: 12px; }
-    #action-btns{ display: flex; gap: 12px; align-items: center; }
+    /* ── 按鍵區佈局 ── */
+    #dpad        { display: flex; gap: 8px; align-items: center; }
+    #mid-btns    { flex: 1; display: flex; justify-content: center; align-items: center; }
+    #action-btns { display: flex; gap: 12px; align-items: center; }
 
     .btn-wrap {
       display: flex;
@@ -91,14 +91,13 @@
     }
     .btn-label {
       font-size: 10px;
-      color: rgba(255,255,255,0.45);
-      letter-spacing: 0.5px;
+      color: rgba(255,255,255,0.4);
+      pointer-events: none; /* 不攔截 touch */
     }
 
     /* ── 基礎按鈕 ── */
     .btn {
       border: none;
-      border-radius: 12px;
       font-weight: bold;
       cursor: pointer;
       touch-action: none;
@@ -106,11 +105,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      user-select: none;
-      -webkit-user-select: none;
-      transition: filter 0.05s;
+      pointer-events: none; /* 由父容器統一管理 touch */
     }
-    .btn:active { filter: brightness(1.25); }
 
     /* 方向鍵 */
     .btn-dir {
@@ -120,12 +116,10 @@
       box-shadow: 0 5px 0 #111, inset 0 1px 0 rgba(255,255,255,0.12);
       color: #ddd;
       font-size: 28px;
-    }
-    @media (pointer: coarse) and (orientation: landscape) and (max-height: 480px) {
-      .btn-dir { width: 48px; height: 48px; font-size: 22px; }
+      transition: filter 0.05s, transform 0.05s;
     }
 
-    /* START 按鈕 */
+    /* START */
     .btn-start {
       width: 56px; height: 28px;
       border-radius: 14px;
@@ -134,7 +128,7 @@
       color: #aaa;
       font-size: 10px;
       letter-spacing: 1px;
-      flex-shrink: 0;
+      pointer-events: none;
     }
 
     /* 跳躍 A（紅） */
@@ -146,9 +140,7 @@
       color: #fff;
       font-size: 26px;
       font-family: Arial, sans-serif;
-    }
-    @media (pointer: coarse) and (orientation: landscape) and (max-height: 480px) {
-      .btn-a { width: 54px; height: 54px; font-size: 20px; }
+      transition: filter 0.05s, transform 0.05s;
     }
 
     /* 奔跑 B（黃） */
@@ -160,9 +152,19 @@
       color: #5a2800;
       font-size: 22px;
       font-family: Arial, sans-serif;
+      transition: filter 0.05s, transform 0.05s;
     }
+
+    /* 按下視覺回饋 */
+    .btn.pressed {
+      filter: brightness(1.4);
+      transform: translateY(3px);
+    }
+
     @media (pointer: coarse) and (orientation: landscape) and (max-height: 480px) {
-      .btn-b { width: 46px; height: 46px; font-size: 18px; }
+      .btn-dir { width: 48px; height: 48px; font-size: 22px; }
+      .btn-a   { width: 54px; height: 54px; font-size: 20px; }
+      .btn-b   { width: 46px; height: 46px; font-size: 18px; }
     }
   </style>
 </head>
@@ -173,7 +175,6 @@
       <canvas id="gameCanvas" width="800" height="480"></canvas>
     </div>
 
-    <!-- 桌機鍵盤提示 -->
     <div id="kb-hint">
       <span>← →</span> 移動 &nbsp;|&nbsp;
       <span>Z / 空白鍵</span> 跳躍 &nbsp;|&nbsp;
@@ -181,40 +182,42 @@
       <span>Enter</span> 開始/確認
     </div>
 
-    <!-- 手機觸控控制器 -->
+    <!--
+      觸控控制器
+      ★ data-key 屬性 — 用來識別每個按鈕對應的虛擬鍵
+      ★ pointer-events: none 讓所有按鈕不自行處理事件
+         改由 #touch-ctrl 的統一 Touch 監聽器管理
+    -->
     <div id="touch-ctrl">
 
-      <!-- 左：方向鍵 -->
       <div id="dpad">
         <div class="btn-wrap">
-          <button class="btn btn-dir" id="btn-left"  aria-label="向左">◀</button>
+          <button class="btn btn-dir" data-key="ArrowLeft" aria-label="向左">◀</button>
           <span class="btn-label">左移</span>
         </div>
         <div class="btn-wrap">
-          <button class="btn btn-dir" id="btn-right" aria-label="向右">▶</button>
+          <button class="btn btn-dir" data-key="ArrowRight" aria-label="向右">▶</button>
           <span class="btn-label">右移</span>
         </div>
       </div>
 
-      <!-- 中：START -->
       <div id="mid-btns">
-        <button class="btn btn-start" id="btn-start" aria-label="開始/確認">START</button>
+        <button class="btn btn-start" data-key="Enter" aria-label="開始">START</button>
       </div>
 
-      <!-- 右：動作按鈕 -->
       <div id="action-btns">
         <div class="btn-wrap">
-          <button class="btn btn-b" id="btn-run"  aria-label="奔跑">B</button>
+          <button class="btn btn-b" data-key="KeyX"  aria-label="奔跑">B</button>
           <span class="btn-label">奔跑</span>
         </div>
         <div class="btn-wrap">
-          <button class="btn btn-a" id="btn-jump" aria-label="跳躍">A</button>
+          <button class="btn btn-a" data-key="Space" aria-label="跳躍">A</button>
           <span class="btn-label">跳躍</span>
         </div>
       </div>
 
-    </div><!-- /touch-ctrl -->
-  </div><!-- /game-wrap -->
+    </div>
+  </div>
 
   <script src="js/game.js"></script>
   <script>
@@ -222,9 +225,7 @@
     function fitCanvas() {
       const wrap   = document.getElementById('canvas-wrap');
       const canvas = document.getElementById('gameCanvas');
-      const availW = wrap.clientWidth;
-      const availH = wrap.clientHeight;
-      const scale  = Math.min(availW / 800, availH / 480);
+      const scale  = Math.min(wrap.clientWidth / 800, wrap.clientHeight / 480);
       canvas.style.width  = Math.floor(800 * scale) + 'px';
       canvas.style.height = Math.floor(480 * scale) + 'px';
     }
@@ -232,27 +233,77 @@
     window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 150));
     fitCanvas();
 
-    // ── 觸控按鍵綁定（使用 Pointer Events 支援多指） ──
-    function bindBtn(id, key) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.addEventListener('pointerdown', e => {
-        e.preventDefault();
-        el.setPointerCapture(e.pointerId);   // 手指滑出也不漏掉 pointerup
-        window._mario?.input.touch(key, true);
-      }, { passive: false });
-      el.addEventListener('pointerup',     () => window._mario?.input.touch(key, false));
-      el.addEventListener('pointercancel', () => window._mario?.input.touch(key, false));
-      el.addEventListener('contextmenu',   e  => e.preventDefault());
-    }
+    // ── 多指觸控核心：單一監聽器，每次 touch 事件都重新掃描所有手指位置 ──
+    (function () {
+      const ctrl = document.getElementById('touch-ctrl');
+      if (!ctrl) return;
 
-    bindBtn('btn-left',  'ArrowLeft');
-    bindBtn('btn-right', 'ArrowRight');
-    bindBtn('btn-jump',  'Space');
-    bindBtn('btn-run',   'KeyX');
-    bindBtn('btn-start', 'Enter');
+      // 目前「按住中」的 key 集合
+      const held = new Set();
 
-    // 防止手機整頁拖曳與縮放
+      /**
+       * 由螢幕座標找出該位置對應的虛擬按鍵 (data-key)
+       * elementFromPoint 會穿透 pointer-events:none 的子元素，直接找到 data-key 節點
+       */
+      function keyAt(clientX, clientY) {
+        let el = document.elementFromPoint(clientX, clientY);
+        while (el && el !== ctrl) {
+          if (el.dataset && el.dataset.key) return el.dataset.key;
+          el = el.parentElement;
+        }
+        return null;
+      }
+
+      /**
+       * 根據目前所有 touch 點，同步按鍵狀態
+       * touches — TouchList（e.touches，代表當前所有觸碰點）
+       */
+      function sync(touches) {
+        // 收集這一瞬間所有手指壓到的 key
+        const next = new Set();
+        for (const t of touches) {
+          const k = keyAt(t.clientX, t.clientY);
+          if (k) next.add(k);
+        }
+
+        // 比對 held vs next：釋放已移開的，按下新觸碰的
+        for (const k of held) {
+          if (!next.has(k)) {
+            window._mario?.input.touch(k, false);
+            ctrl.querySelectorAll(`[data-key="${k}"]`)
+                .forEach(b => b.classList.remove('pressed'));
+          }
+        }
+        for (const k of next) {
+          if (!held.has(k)) {
+            window._mario?.input.touch(k, true);
+            ctrl.querySelectorAll(`[data-key="${k}"]`)
+                .forEach(b => b.classList.add('pressed'));
+          }
+        }
+
+        held.clear();
+        next.forEach(k => held.add(k));
+      }
+
+      function releaseAll() {
+        for (const k of held) {
+          window._mario?.input.touch(k, false);
+          ctrl.querySelectorAll(`[data-key="${k}"]`)
+              .forEach(b => b.classList.remove('pressed'));
+        }
+        held.clear();
+      }
+
+      // 所有 touch 事件集中在 #touch-ctrl 上，e.touches 永遠是完整的多指清單
+      const opt = { passive: false };
+      ctrl.addEventListener('touchstart',  e => { e.preventDefault(); sync(e.touches); }, opt);
+      ctrl.addEventListener('touchmove',   e => { e.preventDefault(); sync(e.touches); }, opt);
+      ctrl.addEventListener('touchend',    e => { e.preventDefault(); sync(e.touches); }, opt);
+      ctrl.addEventListener('touchcancel', e => { e.preventDefault(); releaseAll(); },    opt);
+    })();
+
+    // 防止整頁拖曳
     document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
   </script>
 </body>
